@@ -1,60 +1,20 @@
 #!/bin/bash
 #
-# This is the s9s-tools install script. It installs the s9s CLI.
-# Use --testing to install from the testing repository for not released versions.
+# This is the s9s-tools install script using the testing repository. It installs the s9s CLI for not released versions.
 # Copyright 2017-2023 severalnines.com
 #
 
-# Default variables
 dist="Unknown"
 distversion=""
 regex_lsb="Description:[[:space:]]*([^ ]*)"
 regex_etc="/etc/(.*)[-_]"
-USE_TESTING=false
-
-# Function to show help
-show_help() {
-    cat << EOF
-Usage: $0 [OPTIONS]
-
-Install s9s-tools from Severalnines repository.
-
-OPTIONS:
-    --testing       Use testing repository for not released versions
-    --help, -h      Show this help and exit
-
-EOF
-}
-
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --testing)
-            USE_TESTING=true
-            shift
-            ;;
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
-done
 
 log_msg() {
     LAST_MSG="$1"
     echo "${LAST_MSG}"
 }
 
-if [[ "$USE_TESTING" == true ]]; then
-    log_msg "s9s-tools installer using testing repository."
-else
-    log_msg "s9s-tools installer."
-fi
+log_msg "s9s-tools installer using testing repository."
 
 if [[ $EUID -ne 0 ]]; then
    log_msg "This script must be run as root"
@@ -144,16 +104,9 @@ add_s9s_commandline_apt() {
     apt-get -yq install wget || true
     wget -qO - https://build.opensuse.org/projects/home:severalnines/public_key | apt-key add -
 
-    # Determine repository path based on testing flag
-    if [[ "$USE_TESTING" == true ]]; then
-        REPO_PATH="s9s-tools-testing"
-    else
-        REPO_PATH="s9s-tools"
-    fi
-
     # Available distros: wheezy, jessie, precise, trusty, xenial, yakkety, zesty
-    wget -qO - http://repo.severalnines.com/${REPO_PATH}/${os_codename}/Release.key | apt-key add -
-    echo "deb http://repo.severalnines.com/${REPO_PATH}/${os_codename}/ ./" | tee /etc/apt/sources.list.d/s9s-tools.list
+    wget -qO - http://repo.severalnines.com/s9s-tools-testing/${os_codename}/Release.key | apt-key add -
+    echo "deb http://repo.severalnines.com/s9s-tools-testing/${os_codename}/ ./" | tee /etc/apt/sources.list.d/s9s-tools.list
     # update repositories
     apt -yq update -oAcquire::AllowReleaseInfoChange::Origin=true -oAcquire::AllowReleaseInfoChange::Label=true
 }
@@ -161,13 +114,6 @@ add_s9s_commandline_apt() {
 add_s9s_commandline_yum() {
     log_msg "=> Adding YUM repository ..."
     rpm --import https://build.opensuse.org/projects/home:severalnines/public_key || true
-
-    # Determine repository path based on testing flag
-    if [[ "$USE_TESTING" == true ]]; then
-        REPO_PATH="s9s-tools-testing"
-    else
-        REPO_PATH="s9s-tools"
-    fi
 
     repo_source_file=/etc/yum.repos.d/s9s-tools.repo
     if [[ -z $CENTOS ]]; then
@@ -186,9 +132,9 @@ add_s9s_commandline_yum() {
 [s9s-tools]
 name=s9s-tools (${REPO})
 type=rpm-md
-baseurl=http://repo.severalnines.com/${REPO_PATH}/${REPO}
+baseurl=http://repo.severalnines.com/s9s-tools-testing/${REPO}
 gpgcheck=1
-gpgkey=http://repo.severalnines.com/${REPO_PATH}/${REPO}/repodata/repomd.xml.key
+gpgkey=http://repo.severalnines.com/s9s-tools-testing/${REPO}/repodata/repomd.xml.key
 enabled=1
 EOF
         log_msg "=> Added ${repo_source_file}"
@@ -201,33 +147,26 @@ add_s9s_commandline_zypper() {
     log_msg "=> Adding Zypper repository ..."
     rpm --import https://build.opensuse.org/projects/home:severalnines/public_key || true
 
-    # Determine repository path based on testing flag
-    if [[ "$USE_TESTING" == true ]]; then
-        REPO_PATH="s9s-tools-testing"
-    else
-        REPO_PATH="s9s-tools"
-    fi
-
     repo_source_file=/tmp/s9s-tools.repo
     cat > $repo_source_file << EOF
 [s9s-tools]
 name=s9s-tools (Suse ${distversion})
 type=rpm-md
-baseurl=http://repo.severalnines.com/${REPO_PATH}/${distversion}
+baseurl=http://repo.severalnines.com/s9s-tools-testing/${distversion}
 gpgcheck=1
-gpgkey=http://repo.severalnines.com/${REPO_PATH}/${distversion}/repodata/repomd.xml.key
+gpgkey=http://repo.severalnines.com/s9s-tools-testing/${distversion}/repodata/repomd.xml.key
 enabled=1
 EOF
     # make sure curl or wget is available
     command -v curl || zypper -n install --no-confirm curl || command -v wget || zypper -n install --no-confirm wget
     if command -v curl; then
-        curl "http://repo.severalnines.com/${REPO_PATH}/${distversion}/repodata/repomd.xml.key" -o/tmp/s9s-tools.asc
+        curl "http://repo.severalnines.com/s9s-tools-testing/${distversion}/repodata/repomd.xml.key" -o/tmp/s9s-tools.asc
         rpm --import /tmp/s9s-tools.asc
     elif command -v wget; then
-        wget "http://repo.severalnines.com/${REPO_PATH}/${distversion}/repodata/repomd.xml.key" -O/tmp/s9s-tools.asc
+        wget "http://repo.severalnines.com/s9s-tools-testing/${distversion}/repodata/repomd.xml.key" -O/tmp/s9s-tools.asc
         rpm --import /tmp/s9s-tools.asc
     else
-        rpm --import "http://repo.severalnines.com/${REPO_PATH}/${distversion}/repodata/repomd.xml.key"
+        rpm --import "http://repo.severalnines.com/s9s-tools-testing/${distversion}/repodata/repomd.xml.key"
     fi
     zypper -n addrepo --refresh ${repo_source_file}
     log_msg "=> Added ${repo_source_file}"
